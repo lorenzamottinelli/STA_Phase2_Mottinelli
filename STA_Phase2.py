@@ -117,8 +117,8 @@ Xi_bw_pos = X0 + np.multiply(epsilon, np.real(eigvecs[:, 0]))
 Xi_bw_neg = X0 - np.multiply(epsilon, np.real(eigvecs[:, 0]))
 t_start = 0/t_star
 t_end = (3*365.25*24*3600)/t_star
-t_fw = np.linspace(t_start,t_end,10000)
-t_bw = np.linspace(t_end,t_start,10000)
+t_fw = np.linspace(t_start,t_end,1000)
+t_bw = np.linspace(t_end,t_start,1000)
 fw_pos = integrate.odeint(deriv, Xi_fw_pos, t_fw, args = (mu_ES,),atol=1e-12,rtol=1e-12)
 fw_neg = integrate.odeint(deriv, Xi_fw_neg, t_fw, args = (mu_ES,),atol=1e-12,rtol=1e-12)
 bw_pos = integrate.odeint(deriv, Xi_bw_pos, t_bw, args = (mu_ES,),atol=1e-12,rtol=1e-12)
@@ -283,22 +283,22 @@ if run_solar_sail_flyby:
             cone_angle_lst_save.append(cone_angles[i])
 
             # Plot best distance for each cone angle
-            plt.figure(4)
+            plt.figure()
             plt.scatter(np.rad2deg(cone_angle_lst), flyby_ss[0], color='blue')
-            plt.grid(plt.figure(4))
-            plt.xlabel("Cone angle [deg]", fontsize=20)
-            plt.ylabel("Distance [km]", fontsize=20)
-            plt.tick_params(axis='both', which='major', labelsize=20)
-            plt.title("Flyby distance against cone angle", fontsize=20)
+            plt.grid()
+            plt.xlabel("Cone angle [deg]", fontsize=14)
+            plt.ylabel("Distance [km]", fontsize=14)
+            plt.tick_params(axis='both', which='major', labelsize=14)
+            plt.title("Flyby distances & cone angles", fontsize=14)
 
             # Plot best velocity for each cone angle
-            plt.figure(5)
+            plt.figure()
             plt.scatter(np.rad2deg(cone_angle_lst), flyby_ss[1], color='red')
-            plt.grid(plt.figure(5))
-            plt.xlabel("Cone angle [deg]", fontsize=20)
-            plt.ylabel("Velocity [m/s]", fontsize=20)
-            plt.tick_params(axis='both', which='major', labelsize=20)
-            plt.title("Flyby velocity against cone angle", fontsize=20)
+            plt.grid()
+            plt.xlabel("Cone angle [deg]", fontsize=14)
+            plt.ylabel("Velocity [m/s]", fontsize=14)
+            plt.tick_params(axis='both', which='major', labelsize=14)
+            plt.title("Flyby velocities & cone angles", fontsize=14)
         print(i)
     overall_min_distance = min_distance[np.argmin(min_velocity)] # min velocity provides best flyby, as distance is already satisfying the <150000 km
     overall_min_velocity = min_velocity[np.argmin(min_velocity)]
@@ -319,7 +319,7 @@ if run_solar_sail_flyby:
     # Plot best trajectory
     traj_ss_q3 = integrate.odeint(deriv_solar_sail, Xi_fw_neg, t_fw, args=(mu_ES, overall_min_cone_angle, delta, beta), atol=1e-12,rtol=1e-12, Dfun=None)
     dist_all,vel_all,asteroid_time,spacecraft_time,save_x_prop,save_y_prop,save_ast_x,save_ast_y = [],[],[],[],[],[],[],[]
-    x_prop,y_prop,vx_prop,vy_prop = traj_ss[:, 0],traj_ss[:, 1],traj_ss[:, 2],traj_ss[:, 3]
+    x_prop,y_prop,vx_prop,vy_prop = traj_ss_q3[:, 0],traj_ss_q3[:, 1],traj_ss_q3[:, 2],traj_ss_q3[:, 3]
     first_ast_time = asteroid[0][0]
     for point in asteroid:
         time_ast,x_ast,y_ast,vx_ast,vy_ast = point[0],point[1],point[2],point[3],point[4]
@@ -344,20 +344,22 @@ if run_solar_sail_flyby:
     min_ast_y = save_ast_y[index_min_velocity_propelled]
 
     # Plot best transfer
-    plt.figure(100, figsize=(10, 10))
+    plt.figure(figsize=(10, 10))
     plt.plot(x_prop, y_prop, label='Best transfer', linewidth=2)
     plt.plot(asteroid[:, 1], asteroid[:, 2], label='2015 FQY', linewidth=2)
+    plt.plot(-mu_ES, 0, 'o', color='gold', label='Sun', markersize=20)
+    plt.plot(1 - mu_ES, 0, 'o', color='blue', label='Earth', markersize=8)
     plt.scatter(min_sc_x, min_sc_y, s=150, label='Spacecraft at flyby')
     plt.scatter(min_ast_x, min_ast_y, s=150, label='Asteroid at flyby')
-    plt.scatter(x_L2, 0, marker='x', color='black', s=150, label='Lagrange point, L2')
-    plt.grid(plt.figure(88))
-    plt.xlabel("x [-]", fontsize=20)
-    plt.ylabel("y[-]", fontsize=20)
+    plt.scatter(x_L2_dl, 0, marker='x', color='black', s=150, label='Lagrange point, L2')
+    plt.grid()
+    plt.xlabel("x [AU]", fontsize=14)
+    plt.ylabel("y[AU]", fontsize=14)
     plt.xlim([-1.5, 1.5])
     plt.ylim([-1.5, 1.5])
-    plt.tick_params(axis='both', which='major', labelsize=20)
-    plt.legend(bbox_to_anchor=(1.03, 0.5), ncol=1, loc="center left", borderaxespad=0, prop={'size': 16})
-    plt.title("Best transfer using solar sail propulsion", fontsize=20)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(bbox_to_anchor=(1.03, 0.5), ncol=1, loc="center left", borderaxespad=0, prop={'size': 14})
+    plt.title("Best transfer using solar sail propulsion", fontsize=14)
     plt.show()
 
 
