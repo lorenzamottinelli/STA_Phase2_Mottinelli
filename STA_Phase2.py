@@ -9,6 +9,7 @@ from scipy import optimize
 from scipy import integrate
 from matplotlib import pyplot as plt
 import matplotlib
+import datetime
 from matplotlib import colors as col
 from matplotlib import colorbar as cbar
 import matplotlib.cm as cm
@@ -117,7 +118,7 @@ Xi_bw_neg = X0 - np.multiply(epsilon, np.real(eigvecs[:, 0]))
 t_start = 0/t_star
 t_end = (3*365.25*24*3600)/t_star
 t_fw = np.linspace(t_start,t_end,10000)
-t_bw = np.linspace(t_end,t_start,1000)
+t_bw = np.linspace(t_end,t_start,10000)
 fw_pos = integrate.odeint(deriv, Xi_fw_pos, t_fw, args = (mu_ES,),atol=1e-12,rtol=1e-12)
 fw_neg = integrate.odeint(deriv, Xi_fw_neg, t_fw, args = (mu_ES,),atol=1e-12,rtol=1e-12)
 bw_pos = integrate.odeint(deriv, Xi_bw_pos, t_bw, args = (mu_ES,),atol=1e-12,rtol=1e-12)
@@ -181,15 +182,9 @@ def deriv_solar_sail(Xi,t_fw,mu_ES,alpha,delta,beta):
     dxdt = [Xi[2], Xi[3], (acc_x+acc_solar_x), (acc_y+acc_solar_y)]
 
     return dxdt
-
-epsilon = 10 ** -5
-Xi_fw_neg = X0 - np.multiply(epsilon, np.real(eigvecs[:, 1])) # unstable neg manifold leading to asteroid
 delta = np.deg2rad(90)
 alpha_step = 2.5
 cone_angles = np.arange(np.deg2rad(-90), np.deg2rad(90+alpha_step), np.deg2rad(alpha_step))
-t_start = 0/t_star
-t_end = (3*365.25*24*3600)/t_star
-t_fw = np.linspace(t_start, t_end, 1000)
 beta = 0.01
 plt.figure()
 cmap = plt.get_cmap('jet', len(cone_angles))
@@ -218,34 +213,156 @@ plt.show()
 
 #%% Quantify the performance of solar-sail propulsion, flyby distance (task 3.2b)
 
-def get_flyby_info(traj_sat, traj_asteroid):
-    dist_all = []
-    vel_all = []
+def get_flyby_info(traj_sat, traj_asteroid,time,prop):
+    dist_all,vel_all,asteroid_time,sc_time,spacecraft_time_lst = [],[],[],time,[]
     x_unprop,y_unprop,vx_unprop,vy_unprop = traj_sat[:, 0],traj_sat[:, 1],traj_sat[:, 2],traj_sat[:, 3]
+    first_ast_time = traj_asteroid[0][0]
     for point in traj_asteroid:
-        x_ast,y_ast,vx_ast,vy_ast = point[1], point[2], point[3], point[4]
+        time_ast,x_ast,y_ast,vx_ast,vy_ast = point[0],point[1], point[2], point[3], point[4]
         dist_pt = np.multiply(np.linalg.norm([(x_unprop - x_ast), (y_unprop - y_ast)], axis=0),AU/1000)#km
         vel_pt = np.multiply(np.linalg.norm([(vx_unprop - vx_ast), (vy_unprop - vy_ast)], axis=0),AU/t_star) #m/s
         for k in range(len(dist_pt)):
             if dist_pt[k] <= 150000: #km
                 dist_all.append(dist_pt[k])
                 vel_all.append(vel_pt[k])
-    index_min = np.argmin(vel_all)
-    distance_min = dist_all[index_min]
-    velocity_min = vel_all[index_min]
-    return distance_min, velocity_min
+                asteroid_time.append(time_ast)
+                spacecraft_time_lst.append(sc_time[k])
+    # Find values, based on minimum velocity
+    if len(dist_all) != 0:
+        index_min = np.argmin(vel_all)
+        distance_min = dist_all[index_min]
+        velocity_min = vel_all[index_min]
+        ast_min_time = asteroid_time[index_min]
+        spacecraft_time_min = spacecraft_time_lst[index_min]
+    else:
+        distance_min = 0
+        velocity_min = 0
+        ast_min_time = 0
+        spacecraft_time_min = 0
+    if prop == 'off':
+        # Get the flyby time of the asteroid, the departure time from the Lagrange point, transfer time
+        start_of_2025 = datetime.datetime(year=2025, month=1, day=1, hour=0, minute=0, second=0)
+        flyby_time = start_of_2025 + datetime.timedelta(
+            days=ast_min_time - first_ast_time)
+        departure_time = flyby_time + datetime.timedelta(
+            seconds=-spacecraft_time_min * t_star)
+        transfer_time = np.abs(flyby_time - departure_time)
+        return distance_min, velocity_min, flyby_time, departure_time, transfer_time
+    else:
+        return distance_min, velocity_min, ast_min_time, spacecraft_time_min
 
-# unpropelled
-flyby_fw_neg = get_flyby_info(fw_neg, asteroid)
-# flyby_bw_pos = flyby_unprop(bw_pos, asteroid)
-print('Unstable manifold: min flyby distance = ',flyby_fw_neg[0],'km','min flyby vel =',flyby_fw_neg[1],'m/s')
-# print('Stable manifold: min flyby distance = ',flyby_bw_pos[0],'min flyby vel =',flyby_bw_pos[1])
+#================= FLYBY INFO UNPROPELLED ====================================================
 
-# solar sail
-mindist_alphas = []
-minvel_alphas = []
-for i in range(len(cone_angles)):
-    distance_min_i, velocity_min_i = get_flyby_info(traj_ss[i], asteroid)
-    minvel_alphas.append(velocity_min_i)
-best_alpha_min_vel  = cone_angles[minvel_alphas,index(min(minvel_alphas))]
-print(best_alpha_for_vel)
+run_unpropelled = True
+
+if run_unpropelled:
+    flyby_unprop = get_flyby_info(fw_neg, asteroid, t_fw,'off')
+    print("Flyby distance", flyby_unprop[0], "km")
+    print("Flyby velocity", flyby_unprop[1], "m/s")
+    print("Flyby date of asteroid", flyby_unprop[2])
+    print("Departure time from Lagrange point", flyby_unprop[3])
+    print("Transfer time", flyby_unprop[4], "days")
+
+#%%================= FLYBY INFO WITH SOLAR SAIL PROPULSION ====================================================
+
+run_solar_sail_flyby = True
+min_distance,min_velocity,asteroid_time,spacecraft_time,cone_angle_lst_save = [],[],[],[],[]
+if run_solar_sail_flyby:
+    for i in range(len(cone_angles)):
+        cone_angle = cone_angles[i]
+        # Get the solar sail trajectory
+        traj_ss = integrate.odeint(deriv_solar_sail, Xi_fw_neg, t_fw, args=(mu_ES, cone_angle, delta, beta), atol=1e-12, rtol=1e-12,Dfun=None)
+        # Get the minimum data for each solar sail trajectory
+        flyby_ss = get_flyby_info(traj_ss, asteroid, t_fw, 'on')
+        if flyby_ss[0] != 0 and flyby_ss[1] != 0:
+            min_distance.append(flyby_ss[0])
+            min_velocity.append(flyby_ss[1])
+            cone_angle_lst = cone_angles[i]
+            asteroid_time.append(flyby_ss[2])
+            spacecraft_time.append(flyby_ss[3])
+            cone_angle_lst_save.append(cone_angles[i])
+
+            # Plot best distance for each cone angle
+            plt.figure(4)
+            plt.scatter(np.rad2deg(cone_angle_lst), flyby_ss[0], color='blue')
+            plt.grid(plt.figure(4))
+            plt.xlabel("Cone angle [deg]", fontsize=20)
+            plt.ylabel("Distance [km]", fontsize=20)
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.title("Flyby distance against cone angle", fontsize=20)
+
+            # Plot best velocity for each cone angle
+            plt.figure(5)
+            plt.scatter(np.rad2deg(cone_angle_lst), flyby_ss[1], color='red')
+            plt.grid(plt.figure(5))
+            plt.xlabel("Cone angle [deg]", fontsize=20)
+            plt.ylabel("Velocity [m/s]", fontsize=20)
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.title("Flyby velocity against cone angle", fontsize=20)
+        print(i)
+    overall_min_distance = min_distance[np.argmin(min_velocity)] # min velocity provides best flyby, as distance is already satisfying the <150000 km
+    overall_min_velocity = min_velocity[np.argmin(min_velocity)]
+    overall_min_cone_angle = cone_angle_lst_save[np.argmin(min_velocity)]
+    overall_min_ast_time = asteroid_time[np.argmin(min_velocity)]
+    overall_min_spacecraft_time = spacecraft_time[np.argmin(min_velocity)]
+    start_date_2025 = datetime.datetime(year=2025, month=1, day=1, hour=0, minute=0, second=0)
+    date_of_flyby = start_date_2025 + datetime.timedelta(days=overall_min_ast_time - asteroid[0][0])
+    date_of_departure = date_of_flyby + datetime.timedelta(seconds=-overall_min_spacecraft_time * t_star)
+    transfer_time = np.abs(date_of_flyby - date_of_departure)
+    print("Cone angle for best flyby: ", np.rad2deg(overall_min_cone_angle), "deg")
+    print("Minimum flyby distance: ", overall_min_distance, "km")
+    print("Minimum velocity: ", overall_min_velocity, "m/s")
+    print("Date of asteroid flyby: ", date_of_flyby)
+    print("Date of departure at Lagrange point: ", date_of_departure)
+    print("Transfer time: ", transfer_time, "days")
+
+    # Plot best trajectory
+    traj_ss_q3 = integrate.odeint(deriv_solar_sail, Xi_fw_neg, t_fw, args=(mu_ES, overall_min_cone_angle, delta, beta), atol=1e-12,rtol=1e-12, Dfun=None)
+    dist_all,vel_all,asteroid_time,spacecraft_time,save_x_prop,save_y_prop,save_ast_x,save_ast_y = [],[],[],[],[],[],[],[]
+    x_prop,y_prop,vx_prop,vy_prop = traj_ss[:, 0],traj_ss[:, 1],traj_ss[:, 2],traj_ss[:, 3]
+    first_ast_time = asteroid[0][0]
+    for point in asteroid:
+        time_ast,x_ast,y_ast,vx_ast,vy_ast = point[0],point[1],point[2],point[3],point[4]
+        dist_pt = np.multiply(np.linalg.norm([(x_prop - x_ast), (y_prop - y_ast)], axis=0),AU/1000) #km
+        vel_pt = np.multiply(np.linalg.norm([(vx_prop - vx_ast), (vy_prop - vy_ast)], axis=0),AU/t_star) #m/s
+        # Save all values for which distance is smaller than 150000 km
+        for k in range(len(dist_pt)):
+            if dist_pt[k] <= 150000: # km
+                dist_all.append(dist_pt[k])
+                vel_all.append(vel_pt[k])
+                asteroid_time.append(time_ast)
+                spacecraft_time.append(t_fw[k])
+                save_x_prop.append(x_prop[k])
+                save_y_prop.append(y_prop[k])
+                save_ast_x.append(x_ast)
+                save_ast_y.append(y_ast)
+    # Get the data of the flyby
+    index_min_velocity_propelled = np.argmin(vel_all)
+    min_sc_x = save_x_prop[index_min_velocity_propelled]
+    min_sc_y = save_y_prop[index_min_velocity_propelled]
+    min_ast_x = save_ast_x[index_min_velocity_propelled]
+    min_ast_y = save_ast_y[index_min_velocity_propelled]
+
+    # Plot best transfer
+    plt.figure(100, figsize=(10, 10))
+    plt.plot(x_prop, y_prop, label='Best transfer', linewidth=2)
+    plt.plot(asteroid[:, 1], asteroid[:, 2], label='2015 FQY', linewidth=2)
+    plt.scatter(min_sc_x, min_sc_y, s=150, label='Spacecraft at flyby')
+    plt.scatter(min_ast_x, min_ast_y, s=150, label='Asteroid at flyby')
+    plt.scatter(x_L2, 0, marker='x', color='black', s=150, label='Lagrange point, L2')
+    plt.grid(plt.figure(88))
+    plt.xlabel("x [-]", fontsize=20)
+    plt.ylabel("y[-]", fontsize=20)
+    plt.xlim([-1.5, 1.5])
+    plt.ylim([-1.5, 1.5])
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.legend(bbox_to_anchor=(1.03, 0.5), ncol=1, loc="center left", borderaxespad=0, prop={'size': 16})
+    plt.title("Best transfer using solar sail propulsion", fontsize=20)
+    plt.show()
+
+
+
+# Workpackage 4 - Generate dataset
+# Inputs are: cone angle, transfer time and flyby time
+# Outputs are: Euclidean norm, i.e., the difference in full state between spacecraft and the asteroid
+
