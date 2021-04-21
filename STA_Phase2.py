@@ -27,7 +27,12 @@ x_L2_Deccia = 151105099.2  # km
 mu_sun = 132717800000e09  # m3/s2 Suns grav parameter #mgod
 omega = [0, 0, 1]
 t_star = np.sqrt(AU**3 / (G*(m_earth + m_sun)))
-asteroid = np.loadtxt('2015_YQ1_frameS_2025_2030.dat')
+asteroid1 = np.loadtxt('2015_YQ1_frameS_2025_2030.dat')
+asteroid2 = np.loadtxt('2020_PN1_frameS_2025_2030.dat')
+
+#################    SELECT ASTEROID
+asteroid = asteroid2
+asteroid_choice = 'asteroid2'
 # compute L2 (task 1.1a)
 def l2(x):
     return x - ((1 - mu_ES) / (x + mu_ES) ** 3) * (x + mu_ES) - (mu_ES / (x - (1 - mu_ES)) ** 3) * (x - (1 - mu_ES))
@@ -38,7 +43,7 @@ x_L2 = x_L2_dl * AU #m
 r_L2 = [x_L2_dl, 0, 0]
 r1_L2 = [x_L2_dl + mu_ES, 0, 0]
 r2_L2 = [x_L2_dl - (1 - mu_ES), 0, 0]
-print('x_L2 diensionless:', x_L2_dl)
+print('x_L2 dimensionless:', x_L2_dl)
 print('x_L2:', x_L2, "[km]")
 print('Difference vs Deccia:', abs(x_L2 - x_L2_Deccia), '[km]')
 
@@ -182,34 +187,37 @@ def deriv_solar_sail(Xi,t_fw,mu_ES,alpha,delta,beta):
     dxdt = [Xi[2], Xi[3], (acc_x+acc_solar_x), (acc_y+acc_solar_y)]
 
     return dxdt
+
+run_ss_manifolds = False
 delta = np.deg2rad(90)
 alpha_step = 2.5
 cone_angles = np.arange(np.deg2rad(-90), np.deg2rad(90+alpha_step), np.deg2rad(alpha_step))
 beta = 0.01
-plt.figure()
-cmap = plt.get_cmap('jet', len(cone_angles))
-traj_ss = []
-for i in range(len(cone_angles)):
-    cone_angle = cone_angles[i]
-    print('alpha:', np.rad2deg(cone_angle))
-    traj_ss.append(integrate.odeint(deriv_solar_sail, Xi_fw_neg, t_fw, args=(mu_ES, cone_angle, delta, beta), atol=1e-12, rtol=1e-12,Dfun=None))
-    plt.plot(traj_ss[-1][:, 0], traj_ss[-1][:, 1], c=cmap(i))
-sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=np.rad2deg(min(cone_angles)), vmax=np.rad2deg(max(cone_angles))))
-plt.colorbar(sm,label = r'cone angle $\alpha$ [degrees]')
-plt.plot(fw_neg[:,0],fw_neg[:,1],label = 'unstable invariant manifold,\n negative perturbation')
-plt.plot(bw_pos[:,0],bw_pos[:,1],label = 'stable invariant manifold, \n positive perturbation')
-plt.plot(asteroid[:,1],asteroid[:,2], label = '2015 YQ1 trajectory')
-plt.plot(-mu_ES,0,'o',color = 'gold',label = 'Sun',markersize = 12)
-plt.plot(1-mu_ES,0,'o',color = 'blue',label = 'Earth',markersize = 8)
-plt.plot(x_L2_dl,0,'xk',color = 'purple',label = 'L2')
-plt.ylabel('y [AU]')
-plt.xlabel('x [AU]')
-plt.xlim([-1.5, 1.5])
-plt.ylim([-1.5, 1.5])
-plt.title('Solar sail propelled invariant manifolds')
-plt.legend()
-plt.grid()
-plt.show()
+if run_ss_manifolds:
+    plt.figure()
+    cmap = plt.get_cmap('jet', len(cone_angles))
+    traj_ss = []
+    for i in range(len(cone_angles)):
+        cone_angle = cone_angles[i]
+        print('alpha:', np.rad2deg(cone_angle))
+        traj_ss.append(integrate.odeint(deriv_solar_sail, Xi_fw_neg, t_fw, args=(mu_ES, cone_angle, delta, beta), atol=1e-12, rtol=1e-12,Dfun=None))
+        plt.plot(traj_ss[-1][:, 0], traj_ss[-1][:, 1], c=cmap(i))
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=np.rad2deg(min(cone_angles)), vmax=np.rad2deg(max(cone_angles))))
+    plt.colorbar(sm,label = r'cone angle $\alpha$ [degrees]')
+    plt.plot(fw_neg[:,0],fw_neg[:,1],label = 'unstable invariant manifold,\n negative perturbation')
+    plt.plot(bw_pos[:,0],bw_pos[:,1],label = 'stable invariant manifold, \n positive perturbation')
+    plt.plot(asteroid[:,1],asteroid[:,2], label = '2015 YQ1 trajectory')
+    plt.plot(-mu_ES,0,'o',color = 'gold',label = 'Sun',markersize = 12)
+    plt.plot(1-mu_ES,0,'o',color = 'blue',label = 'Earth',markersize = 8)
+    plt.plot(x_L2_dl,0,'xk',color = 'purple',label = 'L2')
+    plt.ylabel('y [AU]')
+    plt.xlabel('x [AU]')
+    plt.xlim([-1.5, 1.5])
+    plt.ylim([-1.5, 1.5])
+    plt.title('Solar sail propelled invariant manifolds')
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 #%% Quantify the performance of solar-sail propulsion, flyby distance (task 3.2b)
 
@@ -283,22 +291,22 @@ if run_solar_sail_flyby:
             cone_angle_lst_save.append(cone_angles[i])
 
             # Plot best distance for each cone angle
-            plt.figure()
+            plt.figure(4)
             plt.scatter(np.rad2deg(cone_angle_lst), flyby_ss[0], color='blue')
-            plt.grid()
-            plt.xlabel("Cone angle [deg]", fontsize=14)
-            plt.ylabel("Distance [km]", fontsize=14)
+            plt.grid(plt.figure(4))
+            plt.xlabel("Cone angle [deg]", fontsize=16)
+            plt.ylabel("Distance [km]", fontsize=16)
             plt.tick_params(axis='both', which='major', labelsize=14)
-            plt.title("Flyby distances & cone angles", fontsize=14)
+            plt.title("Flyby distances & cone angles", fontsize=16)
 
             # Plot best velocity for each cone angle
-            plt.figure()
+            plt.figure(5)
             plt.scatter(np.rad2deg(cone_angle_lst), flyby_ss[1], color='red')
-            plt.grid()
-            plt.xlabel("Cone angle [deg]", fontsize=14)
-            plt.ylabel("Velocity [m/s]", fontsize=14)
+            plt.grid(plt.figure(5))
+            plt.xlabel("Cone angle [deg]", fontsize=16)
+            plt.ylabel("Velocity [m/s]", fontsize=16)
             plt.tick_params(axis='both', which='major', labelsize=14)
-            plt.title("Flyby velocities & cone angles", fontsize=14)
+            plt.title("Flyby velocities & cone angles", fontsize=16)
         print(i)
     overall_min_distance = min_distance[np.argmin(min_velocity)] # min velocity provides best flyby, as distance is already satisfying the <150000 km
     overall_min_velocity = min_velocity[np.argmin(min_velocity)]
@@ -353,18 +361,46 @@ if run_solar_sail_flyby:
     plt.scatter(min_ast_x, min_ast_y, s=150, label='Asteroid at flyby')
     plt.scatter(x_L2_dl, 0, marker='x', color='black', s=150, label='Lagrange point, L2')
     plt.grid()
-    plt.xlabel("x [AU]", fontsize=14)
-    plt.ylabel("y[AU]", fontsize=14)
+    plt.xlabel("x [AU]", fontsize=16)
+    plt.ylabel("y[AU]", fontsize=16)
     plt.xlim([-1.5, 1.5])
     plt.ylim([-1.5, 1.5])
     plt.tick_params(axis='both', which='major', labelsize=14)
-    plt.legend(bbox_to_anchor=(1.03, 0.5), ncol=1, loc="center left", borderaxespad=0, prop={'size': 14})
-    plt.title("Best transfer using solar sail propulsion", fontsize=14)
+    plt.legend(bbox_to_anchor=(1.03, 0.5), ncol=1, loc="center left", borderaxespad=0, prop={'size': 16})
+    plt.title("Best transfer using solar sail propulsion", fontsize=16)
     plt.show()
 
 
 
-# Workpackage 4 - Generate dataset
+#%% Workpackage 4 - Generate dataset
 # Inputs are: cone angle, transfer time and flyby time
 # Outputs are: Euclidean norm, i.e., the difference in full state between spacecraft and the asteroid
+alpha_step = 2
+cone_angles = np.arange(np.deg2rad(-90), np.deg2rad(90+alpha_step), np.deg2rad(alpha_step))
+t_start = 0/t_star
+t_end = (3*365.25*24*3600)/t_star
+t_fw = np.linspace(t_start,t_end,10000)
+if asteroid_choice == 'asteroid2':
+    training_file = open("Asteroid2_data.txt", "w")
+else:
+    training_file =  open("Training_data.txt", "w")
+i = 0
+for cone_angle in cone_angles:
+    traj_ss_q4 = integrate.odeint(deriv_solar_sail, Xi_fw_neg, t_fw, args=(mu_ES, cone_angle, delta, beta), atol=1e-12,rtol=1e-12, Dfun=None)
+    for point_ast in asteroid[::50]:
+        X_ast = np.multiply(point_ast[1:5],[AU,AU,AU/t_star,AU/t_star]) #timeast,x,y,vx,vy
+        t = 0
+        for point_sat in traj_ss_q4[::100]:
+            t_transfer = t_fw[::100][t]
+            X_sat = np.multiply(point_sat,[AU,AU,AU/t_star,AU/t_star])
+            euc_norm = np.linalg.norm([X_sat - X_ast])
+            training_data = [str(cone_angle)+'\t'+str(point_ast[0])+'\t'+str(t_transfer)+'\t'+str(euc_norm)+'\n']
+            training_file.writelines(training_data)
+            t = t + 1
+            i = i + 1
+            print(i)
+lin = sum(1 for line in open('Training_data.txt'))
+training_file.close()
+
+
 
